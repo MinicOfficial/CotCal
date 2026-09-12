@@ -1,105 +1,315 @@
-#include <iostream>
-#include <limits>
-#include <cmath>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Hesap Makinesi</title>
+<style>
+  :root{
+    --bg:#000000;
+    --text-primary:#ffffff;
+    --text-secondary:#8e8e93;
+    --accent:#ff9800;
+    --accent-dark:#1c1200;
+    --ripple-neutral:rgba(255,255,255,0.10);
+    --ripple-accent:rgba(255,152,0,0.18);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .calculator{width:100%;max-width:380px;}
+  .display{
+    padding:32px 20px 16px;
+    text-align:right;
+  }
+  .history{
+    min-height:22px;
+    font-size:16px;
+    color:var(--text-secondary);
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .result{
+    margin-top:8px;
+    font-size:44px;
+    font-weight:300;
+    color:var(--text-primary);
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .keys{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+    padding:16px 12px 8px;
+  }
+  button.btn{
+    aspect-ratio:1;
+    width:100%;
+    border:none;
+    border-radius:50%;
+    background:transparent;
+    color:var(--text-primary);
+    font-size:26px;
+    font-weight:400;
+    font-family:inherit;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background .12s ease, transform .08s ease;
+  }
+  button.btn svg{width:24px;height:24px;}
+  button.btn:active{transform:scale(0.94);background:var(--ripple-neutral);}
+  button.btn.op{color:var(--accent);font-weight:400;}
+  button.btn.op:active{background:var(--ripple-accent);}
+  button.btn.op.active{background:var(--accent);color:var(--accent-dark);}
+  button.btn.eq{background:var(--accent);color:var(--accent-dark);font-weight:500;}
+  button.btn.eq:active{background:#e68900;transform:scale(0.94);}
+  button.btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+  @media (prefers-reduced-motion:reduce){
+    button.btn{transition:none;}
+    button.btn:active{transform:none;}
+  }
+</style>
+</head>
+<body>
 
-using namespace std;
+<div class="calculator">
+  <div class="display">
+    <div class="history" id="history"></div>
+    <div class="result" id="result">0</div>
+  </div>
+  <div class="keys" id="keys">
+    <button class="btn" data-action="clear">C</button>
+    <button class="btn" data-action="paren">( )</button>
+    <button class="btn op" data-action="percent">%</button>
+    <button class="btn op" data-action="op" data-value="÷">÷</button>
 
-// Hesap makinesinin destekleyebileceği azami (maksimum) mutlak değer
-const double AZAMI_DEGER = 1000000000.0; // 1.000.000.000
+    <button class="btn" data-action="digit" data-value="7">7</button>
+    <button class="btn" data-action="digit" data-value="8">8</button>
+    <button class="btn" data-action="digit" data-value="9">9</button>
+    <button class="btn op" data-action="op" data-value="×">×</button>
 
-// Girilen veya hesaplanan bir değerin sınırı aşıp aşmadığını kontrol eder
-bool siniriAsiyorMu(double deger) {
-    return fabs(deger) > AZAMI_DEGER;
-}
+    <button class="btn" data-action="digit" data-value="4">4</button>
+    <button class="btn" data-action="digit" data-value="5">5</button>
+    <button class="btn" data-action="digit" data-value="6">6</button>
+    <button class="btn op" data-action="op" data-value="−">−</button>
 
-// Giris akisi kapanmissa (Ctrl+D / Ctrl+Z veya boru hattinin sonu) programi
-// duzgunce sonlandirir; aksi halde sonsuz donguye girilebilir
-void girisKapaliysaCik() {
-    if (cin.eof()) {
-        cout << "\nGiris sonlandi. Programdan cikiliyor.\n";
-        exit(0);
+    <button class="btn" data-action="digit" data-value="1">1</button>
+    <button class="btn" data-action="digit" data-value="2">2</button>
+    <button class="btn" data-action="digit" data-value="3">3</button>
+    <button class="btn op" data-action="op" data-value="+">+</button>
+
+    <button class="btn" data-action="backspace" aria-label="Sil">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+    </button>
+    <button class="btn" data-action="digit" data-value="0">0</button>
+    <button class="btn" data-action="dot">,</button>
+    <button class="btn eq" data-action="equals" aria-label="Eşittir">=</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var state = { expr:'', history:'', resultDisplay:'0', justEvaluated:false };
+
+  function toDisplay(s){ return (s||'').replace(/\./g, ','); }
+
+  function evaluateExpression(str){
+    var expr = str.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/%/g,'/100');
+    var pos = 0;
+    function peek(){ return expr[pos]; }
+    function consumeNumber(){
+      var start = pos;
+      while(pos<expr.length && /[0-9.]/.test(expr[pos])) pos++;
+      if(start===pos) throw new Error('parse');
+      return parseFloat(expr.slice(start,pos));
     }
-}
-
-// Kullanıcıdan geçerli bir sayı okur; sınırı aşarsa uyarı verip tekrar sorar
-double sayiOku(const string& etiket) {
-    double deger;
-    while (true) {
-        cout << etiket;
-        while (!(cin >> deger)) {
-            girisKapaliysaCik();
-            cout << "Gecersiz giris! Lutfen bir sayi girin: ";
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        }
-
-        if (siniriAsiyorMu(deger)) {
-            cout << "Bu islem hesap makinesinin azami degerini asmaktadir!\n";
-            continue;
-        }
-        return deger;
+    function parseFactor(){
+      if(peek()==='('){ pos++; var v=parseExpr(); if(peek()===')') pos++; return v; }
+      if(peek()==='-'){ pos++; return -parseFactor(); }
+      if(peek()==='+'){ pos++; return parseFactor(); }
+      return consumeNumber();
     }
-}
-
-int main() {
-    cout << "========================================\n";
-    cout << "           HESAP MAKINESI\n";
-    cout << "  (Azami islem siniri: 1.000.000.000)\n";
-    cout << "========================================\n";
-
-    char devamMi = 'e';
-
-    while (devamMi == 'e' || devamMi == 'E') {
-        cout << "\n----------------------------------------\n";
-        double sayi1 = sayiOku("1. sayiyi girin: ");
-
-        char islem;
-        cout << "Islem secin (+, -, *, /): ";
-        cin >> islem;
-        girisKapaliysaCik();
-
-        double sayi2 = sayiOku("2. sayiyi girin: ");
-
-        double sonuc = 0.0;
-        bool gecerliIslem = true;
-
-        switch (islem) {
-            case '+':
-                sonuc = sayi1 + sayi2;
-                break;
-            case '-':
-                sonuc = sayi1 - sayi2;
-                break;
-            case '*':
-                sonuc = sayi1 * sayi2;
-                break;
-            case '/':
-                if (sayi2 == 0.0) {
-                    cout << "Hata: Bir sayi sifira bolunemez!\n";
-                    gecerliIslem = false;
-                } else {
-                    sonuc = sayi1 / sayi2;
-                }
-                break;
-            default:
-                cout << "Gecersiz islem! Lutfen +, -, * veya / girin.\n";
-                gecerliIslem = false;
-                break;
-        }
-
-        if (gecerliIslem) {
-            if (siniriAsiyorMu(sonuc)) {
-                cout << "Bu islem hesap makinesinin azami degerini asmaktadir!\n";
-            } else {
-                cout << "Sonuc: " << sonuc << "\n";
-            }
-        }
-
-        cout << "\nBaska bir islem yapmak istiyor musunuz? (e/h): ";
-        cin >> devamMi;
-        girisKapaliysaCik();
+    function parseTerm(){
+      var v=parseFactor();
+      while(peek()==='*'||peek()==='/'){
+        var op=peek(); pos++;
+        var rhs=parseFactor();
+        if(op==='/'){ if(rhs===0) throw new Error('div0'); v=v/rhs; } else v=v*rhs;
+      }
+      return v;
     }
+    function parseExpr(){
+      var v=parseTerm();
+      while(peek()==='+'||peek()==='-'){
+        var op=peek(); pos++;
+        var rhs=parseTerm();
+        v = op==='+' ? v+rhs : v-rhs;
+      }
+      return v;
+    }
+    if(expr==='') return 0;
+    var result = parseExpr();
+    if(pos!==expr.length) throw new Error('parse');
+    return result;
+  }
 
-    cout << "\nHesap makinesinden cikildi. Iyi gunler!\n";
-    return 0;
-}
+  function formatNumber(v){
+    if(!isFinite(v)) throw new Error('math');
+    var r = Math.round(v*1e9)/1e9;
+    if(Object.is(r,-0)) r=0;
+    var s = r.toString();
+    if(s.indexOf('e')!==-1){ s = r.toPrecision(10).replace(/(\.\d*?)0+$/,'$1').replace(/\.$/,''); }
+    return s;
+  }
+
+  function previewValue(expr){
+    var e = expr.replace(/[+\-×÷]+$/,'');
+    if(e===''||e==='-') return '';
+    var opens=(e.match(/\(/g)||[]).length;
+    var closes=(e.match(/\)/g)||[]).length;
+    for(var i=0;i<opens-closes;i++) e+=')';
+    try{
+      var v = evaluateExpression(e);
+      if(!isFinite(v)) return '';
+      return formatNumber(v);
+    }catch(err){ return ''; }
+  }
+
+  function render(){
+    var historyEl = document.getElementById('history');
+    var resultEl = document.getElementById('result');
+    if(state.justEvaluated){
+      historyEl.textContent = state.history;
+      resultEl.textContent = state.resultDisplay;
+    } else {
+      historyEl.textContent = toDisplay(state.expr);
+      var preview = state.expr ? previewValue(state.expr) : '';
+      resultEl.textContent = preview ? toDisplay(preview) : '0';
+    }
+    var len = resultEl.textContent.length;
+    resultEl.style.fontSize = len>10 ? '30px' : (len>7 ? '36px' : '44px');
+  }
+
+  function pressDigit(d){
+    if(state.justEvaluated){ state.expr=''; state.history=''; state.justEvaluated=false; }
+    state.expr += d;
+    render();
+  }
+  function pressDot(){
+    if(state.justEvaluated){ state.expr=''; state.history=''; state.justEvaluated=false; }
+    var m = state.expr.match(/[0-9.]*$/)[0];
+    if(m.indexOf('.')===-1) state.expr += (m===''? '0.' : '.');
+    render();
+  }
+  function pressOp(op){
+    if(state.justEvaluated){ state.justEvaluated=false; state.history=''; }
+    if(state.expr===''){
+      if(op==='−'){ state.expr='-'; render(); return; }
+      return;
+    }
+    var last = state.expr[state.expr.length-1];
+    if('+-×÷'.indexOf(last)!==-1){ state.expr = state.expr.slice(0,-1)+op; }
+    else { state.expr += op; }
+    render();
+  }
+  function pressParen(){
+    if(state.justEvaluated){ state.expr=''; state.history=''; state.justEvaluated=false; }
+    var opens=(state.expr.match(/\(/g)||[]).length;
+    var closes=(state.expr.match(/\)/g)||[]).length;
+    var last = state.expr[state.expr.length-1];
+    if(opens>closes && last && /[0-9)]/.test(last)) state.expr+=')';
+    else state.expr+='(';
+    render();
+  }
+  function pressPercent(){
+    if(!state.expr) return;
+    state.expr += '%';
+    render();
+  }
+  function pressClear(){
+    state.expr=''; state.history=''; state.resultDisplay='0'; state.justEvaluated=false;
+    render();
+  }
+  function pressBackspace(){
+    if(state.justEvaluated){ pressClear(); return; }
+    state.expr = state.expr.slice(0,-1);
+    render();
+  }
+  function pressEquals(){
+    if(!state.expr) return;
+    try{
+      var v = evaluateExpression(state.expr);
+      var formatted = formatNumber(v);
+      state.history = toDisplay(state.expr) + ' =';
+      state.resultDisplay = toDisplay(formatted);
+      state.expr = formatted;
+      state.justEvaluated = true;
+    }catch(err){
+      state.history = toDisplay(state.expr) + ' =';
+      state.resultDisplay = 'Hata';
+      state.expr = '';
+      state.justEvaluated = true;
+    }
+    render();
+  }
+  function clearOpActive(){
+    var ops = document.querySelectorAll('.btn.op');
+    for(var i=0;i<ops.length;i++) ops[i].classList.remove('active');
+  }
+
+  function handleAction(action, value, btn){
+    clearOpActive();
+    if(action==='digit') pressDigit(value);
+    else if(action==='dot') pressDot();
+    else if(action==='op'){ pressOp(value); if(btn) btn.classList.add('active'); }
+    else if(action==='paren') pressParen();
+    else if(action==='percent') pressPercent();
+    else if(action==='clear') pressClear();
+    else if(action==='backspace') pressBackspace();
+    else if(action==='equals') pressEquals();
+  }
+
+  document.getElementById('keys').addEventListener('click', function(e){
+    var btn = e.target.closest('.btn');
+    if(!btn) return;
+    handleAction(btn.dataset.action, btn.dataset.value, btn);
+  });
+
+  var keyMap = {
+    '+':['op','+'], '-':['op','−'], '*':['op','×'], '/':['op','÷'],
+    '%':['percent',null], '(':['paren',null], ')':['paren',null],
+    '.':['dot',null], ',':['dot',null],
+    'Enter':['equals',null], '=':['equals',null],
+    'Backspace':['backspace',null], 'Escape':['clear',null]
+  };
+  document.addEventListener('keydown', function(e){
+    if(e.key>='0' && e.key<='9'){ handleAction('digit', e.key); e.preventDefault(); return; }
+    var mapped = keyMap[e.key];
+    if(mapped){
+      var selector = mapped[0]==='op' ? '.btn[data-value="'+mapped[1]+'"]' : '.btn[data-action="'+mapped[0]+'"]';
+      var btn = document.querySelector(selector);
+      handleAction(mapped[0], mapped[1], btn);
+      e.preventDefault();
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
